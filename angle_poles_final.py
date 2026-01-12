@@ -60,23 +60,25 @@ while True:
 
     hsv_image = cv2.cvtColor(frame_normalized, cv2.COLOR_BGR2HSV)
 
+
     # RED MASK
     mask1 = cv2.inRange(hsv_image, LOWER_RED_1, UPPER_RED_1)
     mask2 = cv2.inRange(hsv_image, LOWER_RED_2, UPPER_RED_2)
     red_mask = cv2.bitwise_or(mask1, mask2)
 
-    kernel_red = np.ones((5, 5), np.uint8)
+    kernel_red = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 25))
+    # kernel_red = np.ones((5, 5), np.uint8)
     # red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel_red)
     red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_CLOSE, kernel_red)
     cv2.imshow("Red Mask", red_mask)
 
 
-
-    contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
+    contours_red, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    x_red, y_red, w_red, h_red = 0, 0, 0, 0
     frame_bbox = frame_normalized.copy()
     img_h, img_w = frame_bbox.shape[:2]
-    for cnt in contours:
+    pole_candidates_red = []
+    for cnt in contours_red:
         area = cv2.contourArea(cnt)
         if area < 300:
             continue  # noise
@@ -86,55 +88,75 @@ while True:
         # Geometry filters
         aspect_ratio = h / w if w != 0 else 0
 
-        if aspect_ratio < 5:
+        if aspect_ratio < 3:
             continue  # not pole-like
 
         if y + h < 0.6 * img_h: 
             continue  # not touching floor
 
         # If we reach here → THIS IS A POLE
-        cv2.rectangle(frame_bbox, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(frame_bbox, "RED POLE", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-    cv2.imshow("Detected Pole (Geometry Filtered)", frame_bbox)
+        pole_candidates_red.append((cnt, x, y, w, h))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    if len(pole_candidates_red) > 0:
+        best = max(pole_candidates_red, key=lambda item: item[4])
+        cnt, x_red, y_red, w_red, h_red = best
+        cv2.rectangle(frame_bbox, (x_red, y_red), (x_red + w_red, y_red + h_red), (0, 255, 0), 2)
+        cv2.putText(frame_bbox, "RED POLE", (x_red, y_red - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        # Calculating the yaw angle
+        img_center_x = img_w // 2
+        red_pole_center_x = x_red + (w_red // 2)
+        x_error = red_pole_center_x - img_center_x  
+        yaw_angle = (x_error / img_center_x) * (HORIZONTAL_FOV_DEG / 2)
+        cv2.line(frame_bbox, (img_center_x, 0), (img_center_x, img_h), (255, 0, 0), 2)
+        cv2.circle(frame_bbox, (red_pole_center_x, y_red), 6, (0, 0, 255), -1)
+        cv2.putText(frame_bbox, f"Yaw: {yaw_angle:.2f} deg", (30, 40), cv2.FONT_HERSHEY_SIMPLEX,
+        1, (0, 255, 255), 2)
+    cv2.imshow("Detected Red Pole", frame_bbox)
 
 
 
 
 
     # YELLOW MASK
-    kernel_yellow = np.ones((3, 3), np.uint8)
+    # kernel_yellow = np.ones((3, 3), np.uint8)
+    kernel_yellow = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 25))
     yellow_mask = cv2.inRange(hsv_image, LOWER_YELLOW, UPPER_YELLOW) 
-    # yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, kernel_yellow)
+    yellow_mask = cv2.dilate(yellow_mask, kernel_yellow, iterations=1)
     yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, kernel_yellow)
     cv2.imshow("Yellow Mask", yellow_mask)
+
+    contours_yellow, _ = cv2.findContours(yellow_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    frame_bbox = frame_normalized.copy()
+    img_h, img_w = frame_bbox.shape[:2]
+    pole_candidates_yellow = []
+    for cnt in contours_yellow:
+        area = cv2.contourArea(cnt)
+        if area < 200:
+            continue  # noise
+
+        x, y, w, h = cv2.boundingRect(cnt)
+
+        # Geometry filters
+        aspect_ratio = h / w if w != 0 else 0
+
+        if aspect_ratio < 3:
+            continue  # not pole-like
+
+        if y + h < 0.6 * img_h: 
+            continue  # not touching floor
+        # If we reach here → THIS IS A POLE
+        pole_candidates_yellow.append((cnt, x, y, w, h))
+
+
+
+    if len(pole_candidates_yellow) > 0:
+        best = max(pole_candidates_yellow, key=lambda item: item[4])
+        cnt, x, y, w, h = best
+        cv2.rectangle(frame_bbox, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        cv2.putText(frame_bbox, "YELLOW POLE", (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    cv2.imshow("Detected Yellow Pole", frame_bbox)
+
 
 
 
@@ -165,6 +187,9 @@ while True:
     key = cv2.waitKey(0) & 0xFF   # wait indefinitely
     if key == ord('q'):
         break
+
+    # if cv2.waitKey(20) & 0xFF == ord('q'):
+    #     break
 
 
 capture.release()
