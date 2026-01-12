@@ -89,12 +89,12 @@ while True:
         aspect_ratio = h / w if w != 0 else 0
 
         if aspect_ratio < 3:
-            continue  # not pole-like
+            continue  # not pole like
 
         if y + h < 0.6 * img_h: 
             continue  # not touching floor
 
-        # If we reach here → THIS IS A POLE
+        # If it passes all conditions, then it might be a pole
         pole_candidates_red.append((cnt, x, y, w, h))
 
     if len(pole_candidates_red) > 0:
@@ -145,7 +145,8 @@ while True:
 
         if y + h < 0.6 * img_h: 
             continue  # not touching floor
-        # If we reach here → THIS IS A POLE
+        
+        # If it passes all conditions, then it might be a pole
         pole_candidates_yellow.append((cnt, x, y, w, h))
 
 
