@@ -1,0 +1,98 @@
+Underwater Pole Perception & Control Pipeline (SAUVC)
+
+This document describes the planned perception and control pipeline for
+underwater pole targeting. The final objective is to estimate the full
+3D pose of the pole using solvePnP and use it for closed-loop guidance.
+For early testing and controller validation, ArUco-based pose estimation
+is used temporarily.
+
+────────────────────────────────────────────────────
+1. Image Acquisition
+────────────────────────────────────────────────────
+- [x] Capture image / video frame from forward-facing camera
+
+────────────────────────────────────────────────────
+2. Coarse Detection (Object Localization)
+────────────────────────────────────────────────────
+- [ ] Run YOLO detector to obtain coarse pole bounding box (x, y, w, h)
+- [ ] Crop Region of Interest (ROI) using YOLO bounding box
+
+Note:
+YOLO is used only for coarse localization and rejection of false positives.
+All precise geometry extraction is done using classical vision inside the ROI.
+
+────────────────────────────────────────────────────
+3. ROI Enhancement & Segmentation
+────────────────────────────────────────────────────
+- [x] Apply color enhancement on ROI
+      (MIN–MAX normalization, optional CLAHE)
+- [x] Convert enhanced ROI to HSV color space
+- [x] Apply HSV thresholding to obtain pole binary mask
+- [x] Apply morphological operations to connect fragmented regions
+- [x] Remove small blobs and non-vertical noise
+      (area + aspect-ratio filtering)
+
+────────────────────────────────────────────────────
+4. Pole Shaft Isolation
+────────────────────────────────────────────────────
+- [ ] Detect pole base region
+      (bottom widening / circular base)
+- [ ] Remove pole base pixels from binary mask
+- [ ] Generate shaft-only binary mask
+      (thin, vertically consistent pole region)
+
+────────────────────────────────────────────────────
+5. Shaft Geometry Extraction
+────────────────────────────────────────────────────
+- [ ] Extract pole shaft centerline
+      (row-wise centroid or PCA on shaft mask)
+- [ ] Detect shaft top point
+      (highest valid centerline pixel)
+- [ ] Detect shaft bottom point
+      (lowest valid shaft pixel)
+
+────────────────────────────────────────────────────
+6A. Temporary Pose Estimation (CURRENT TESTING MODE)
+────────────────────────────────────────────────────
+This mode is used to validate guidance and control while the vision-based
+solvePnP pipeline is under development.
+
+- [x] Detect ArUco marker mounted on the pole
+- [x] Estimate 6-DoF pose using ArUco pose estimation
+- [x] Use pose (X, Y, Z, roll, pitch, yaw) for cascaded control
+- [x] Tune position and yaw PID controllers
+- [x] Validate vehicle response and stability
+
+Note:
+ArUco is a temporary aid and will be removed once solvePnP-based pole
+pose estimation is reliable.
+
+────────────────────────────────────────────────────
+6B. Vision-Based Pose Estimation (FINAL METHOD)
+────────────────────────────────────────────────────
+- [ ] Define 3D pole model points
+      (shaft top & bottom in real-world coordinates)
+- [ ] Form 2D–3D correspondences
+      (image shaft points ↔ 3D pole model points)
+- [ ] Run solvePnP to estimate:
+      • rotation vector (rvec)
+      • translation vector (tvec)
+- [ ] Convert rvec to rotation matrix / Euler angles
+- [ ] Obtain full 6-DoF pole pose in camera frame:
+      (X, Y, Z, roll, pitch, yaw)
+
+────────────────────────────────────────────────────
+7. Temporal Filtering
+────────────────────────────────────────────────────
+- [ ] Apply temporal filtering to pose estimates
+      (EMA / Kalman filter)
+- [ ] Improve pose stability under noise and water disturbances
+
+────────────────────────────────────────────────────
+8. Guidance & Control Integration
+────────────────────────────────────────────────────
+- [ ] Use pose-based cascaded control:
+      • outer loop: position error (X, Y, Z)
+      • inner loop: yaw / attitude control
+- [ ] Command vehicle to move towards pole and perform hit task
+- [ ] Remove ArUco dependency once solvePnP pipeline is stable
