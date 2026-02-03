@@ -13,7 +13,6 @@ __pycache__/
 /src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/red_pole_2.jpg
 /src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/red_pole.png
 
-/src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/sauvc_test_hsv.py
 /src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/sauvc_test_lab.py
 /src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/poles_yaw_lab.py
 /src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/test.py
