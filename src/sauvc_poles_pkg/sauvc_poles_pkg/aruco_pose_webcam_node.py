@@ -59,7 +59,7 @@ class ArucoPoseNode(Node):
 
 
         # Camera
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture("aruco.mov")
         if not self.capture.isOpened():
             self.get_logger().error("Could Not open webcam")
             return 

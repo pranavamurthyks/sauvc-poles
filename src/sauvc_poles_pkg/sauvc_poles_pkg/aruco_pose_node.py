@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import math
 from geometry_msgs.msg import PoseStamped
+from scipy.spatial.transform import Rotation as R
 
 
 class ArucoPoseNode(Node):
@@ -58,7 +59,7 @@ class ArucoPoseNode(Node):
 
 
         # Camera
-        self.capture = cv2.VideoCapture(0)
+        self.capture = cv2.VideoCapture("aruco.mov")
         if not self.capture.isOpened():
             self.get_logger().error("Could Not open webcam")
             return 
@@ -93,9 +94,28 @@ class ArucoPoseNode(Node):
             if not self.success:
                 continue
 
-            self.get_logger().info(f"ID {self.ids[i][0]}")
-            self.get_logger().info(f"Translation (X Y Z) meters: {self.tvec.flatten()}")
-            self.get_logger().info(f"Rotation vector: {self.rvec.flatten()}")
+
+            # Publishing Pose
+            self.pose_msg = PoseStamped()
+            self.pose_msg.header.stamp = self.get_clock().now().to_msg()
+            self.pose_msg.frame_id = "camera_frame"
+
+            self.pose_msg.pose.position.x = float(self.tvec[0])
+            self.pose_msg.pose.position.y = float(self.tvec[1])
+            self.pose_msg.pose.position.z = float(self.tvec[2])
+
+            # Rotation: rvec -> quaternion
+            rot = R.from_rotvec(self.rvec.flatten())
+            qx, qy, qz, qw = rot.as_quat()
+
+            self.pose_msg.pose.orientation.x = qx
+            self.pose_msg.pose.orientation.y = qy
+            self.pose_msg.pose.orientation.z = qz
+            self.pose_msg.pose.orientation.w = qw
+
+            # Publish
+            self.pose_pub.publish(self.pose_msg)
+
 
             cv2.drawFrameAxes(self.frame, self.camera_matrix, self.dist_coeffs, self.rvec, self.tvec, 0.1)
 
@@ -122,15 +142,6 @@ class ArucoPoseNode(Node):
         cv2.destroyAllWindows()
         super().destroy_node()
  
-
-
-
-            
-
-        
-
-
-
 
 def main(args=None):
     rclpy.init(args=args)

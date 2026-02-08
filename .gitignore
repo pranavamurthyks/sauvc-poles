@@ -21,3 +21,5 @@ __pycache__/
 
 /src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/sauvc
 /src/sauvc_poles_pkg/sauvc_poles_pkg/Perception/poles_dataset
+
+aruco.mov
