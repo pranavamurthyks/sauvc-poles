@@ -12,15 +12,11 @@ class PoleControlNode(Node):
     def __init__(self):
         super().__init__("pole_control_node")
 
-        # -------------------------------
-        # State variables
-        # -------------------------------
+        # State Variables
         self.telemetry = None
         self.pole_pose = None
 
-        # -------------------------------
-        # Subscribers
-        # -------------------------------
+        # Subscribers to get Pose and Telemetry 
         self.telemetry_sub = self.create_subscription(
             Telemetry,
             "/telemetry",
@@ -35,19 +31,15 @@ class PoleControlNode(Node):
             10
         )
 
-        # -------------------------------
-        # Publisher
-        # -------------------------------
+        # Publishing commands to thrusters
         self.cmd_pub = self.create_publisher(
             Commands,
             "/commands",
             10
         )
 
-        # -------------------------------
-        # Control parameters
-        # -------------------------------
 
+        # PID Values
         # Outer loop: yaw ANGLE → yaw RATE
         self.Kp_yaw_outer = 2.0        # (rad/s per rad)
 
@@ -59,47 +51,32 @@ class PoleControlNode(Node):
 
         self.control_dt = 0.1  # seconds
 
-        # -------------------------------
-        # Control loop timer
-        # -------------------------------
+        # Timer for control loop
         self.timer = self.create_timer(self.control_dt, self.control_loop)
-
         self.get_logger().info("Pole control node (cascaded yaw) started")
 
-    # =========================================================
-    # Callbacks
-    # =========================================================
 
+    # Callback functions
     def telemetry_callback(self, msg):
         self.telemetry = msg
 
     def pose_callback(self, msg):
         self.pole_pose = msg
 
-    # =========================================================
-    # Control Loop
-    # =========================================================
 
+    # Main Control Loop (Callback for the timer)
     def control_loop(self):
-
-        # Safety check
         if self.telemetry is None or self.pole_pose is None:
             return
 
-        # -----------------------------------------------------
-        # VISION → DESIRED YAW ANGLE
-        # -----------------------------------------------------
-
+        # Getting the angle from pose
         self.x_error = self.pole_pose.pose.position.x
         self.z_error = self.pole_pose.pose.position.z
 
         # Desired yaw angle to face the pole
         self.desired_yaw = math.atan2(self.x_error, self.z_error)
 
-        # -----------------------------------------------------
-        # CURRENT YAW FROM IMU
-        # -----------------------------------------------------
-
+        # Current yaw (heading angle wrt north)
         self.current_yaw = math.radians(self.telemetry.yaw)  # degrees (assumed)
 
         # Yaw angle error
@@ -131,15 +108,11 @@ class PoleControlNode(Node):
         )
 
         # Clamp PWM
-        self.yaw_pwm = max(
-            self.PWM_NEUTRAL - self.PWM_LIMIT,
-            min(self.yaw_pwm, self.PWM_NEUTRAL + self.PWM_LIMIT)
-        )
+        self.yaw_pwm = max(self.PWM_NEUTRAL - self.PWM_LIMIT, min(self.yaw_pwm, self.PWM_NEUTRAL + self.PWM_LIMIT))
 
-        # -----------------------------------------------------
-        # SEND COMMAND
-        # -----------------------------------------------------
 
+
+        # Sending commands
         self.cmd = Commands()
 
         self.cmd.arm = True
@@ -158,9 +131,6 @@ class PoleControlNode(Node):
         self.cmd_pub.publish(self.cmd)
 
 
-# =============================================================
-# Main
-# =============================================================
 
 def main(args=None):
     rclpy.init(args=args)
