@@ -37,6 +37,7 @@ class PoseControlNode(Node):
         # Variable initialization
         self.stage = "NEAR"
 
+        self.x = self.y = self.z = None
         self.bbox_history = deque(maxlen=5)
         self.tvec_history = deque(maxlen=5)
         self.bbox_center_x = None
@@ -76,7 +77,7 @@ class PoseControlNode(Node):
 
 
     def telemetry_callback(self, msg):
-        self.arm = msg.arm
+        self.cmd.arm = msg.arm
         self.yaw = msg.yaw
         
     
@@ -105,7 +106,7 @@ class PoseControlNode(Node):
                 'h': msg.size_y
             })
         
-        if (len(self.bbox_history) == 5):
+        if (len(self.bbox_history) == 5): ## better do this in percep and publish stage as per that 
             self.bbox_center_x = np.mean([f['cx'] for f in self.bbox_history])
             self.bbox_center_y = np.mean([f['cy'] for f in self.bbox_history])
             self.bbox_size_x = np.mean([f['w'] for f in self.bbox_history])
@@ -117,13 +118,13 @@ class PoseControlNode(Node):
 
     
     def stage_callback(self, msg):
-        if (msg - 0.0) < 0.5: # Using 0.5 as threshold as float and integer cannot be compared directly
+        if (msg.data - 0.0) < 0.5: # Using 0.5 as threshold as float and integer cannot be compared directly
             self.stage = "ZERO"
-        elif (msg - 1.0) < 0.5:
+        elif (msg.data - 1.0) < 0.5:
             self.stage = "FAR"
-        elif (msg - 2.0) < 0.5:
+        elif (msg.data - 2.0) < 0.5:
             self.stage = "MID"
-        elif (msg - 3.0) < 0.5:
+        elif (msg.data - 3.0) < 0.5:
             self.stage = "NEAR"
         else:
             self.stage = None
@@ -147,7 +148,7 @@ class PoseControlNode(Node):
         if self.x is None or self.z is None:
             return
         # yaw pid
-        self.arm = True
+        self.cmd.arm = True
         self.yaw_error = math.atan2(self.x , self.z) # Calculating yaw error by tan-1(x/z)
         if (abs(self.yaw_error) > 0.08): # 0.08 is 5 degrees
             self.yaw_cmd = 1500 + (self.kp_yaw * self.yaw_error)
@@ -155,6 +156,7 @@ class PoseControlNode(Node):
             self.cmd.yaw = self.yaw_cmd
         
         else:
+            self.cmd.yaw = 1500
             self.surge_error = self.z
             self.surge_cmd = 1500 + (self.kp_surge * self.surge_error)
             self.surge_cmd = self.pwm_clamp(self.surge_cmd)
@@ -168,6 +170,8 @@ class PoseControlNode(Node):
         self.arm = True
         self.depth_error = self.frame_center_y - self.bbox_center_y
         if (abs(self.depth_error) > 20):
+            self.cmd.lateral = 1500
+            self.cmd.forward = 1500
             self.thrust_cmd = 1500 + (self.depth_error * self.kp_depth)
             self.thrust_cmd = self.pwm_clamp(self.thrust_cmd)
             self.cmd.thrust = self.thrust_cmd
@@ -178,6 +182,7 @@ class PoseControlNode(Node):
                 self.lateral_cmd = self.pwm_clamp(self.lateral_cmd)
                 self.cmd.lateral = self.lateral_cmd
             else:
+                self.cmd.lateral = 1500
                 self.cmd.forward = 1600
             
 
